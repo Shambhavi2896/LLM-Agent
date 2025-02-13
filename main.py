@@ -276,14 +276,19 @@ async def run_task(task: str = Query(..., description="Task description in plain
 async def read_file(path: str = Query(..., description="Path to the file to read")):
     if not path.startswith("/data/"):
         raise HTTPException(status_code=400, detail="Access to files outside /data is not allowed.")
-    # Define the paths
-    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), './data'))
-    path = os.path.join(data_dir, path.lstrip('/data/'))
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="File not found.")
+
+    # Define the base directory safely
+    data_dir = os.path.abspath(os.path.join(os.getcwd(), 'data'))
+    relative_path = os.path.relpath(path, "/data/")
+    full_path = os.path.join(data_dir, relative_path)
+
+    print(f"Attempting to read file at: {full_path}")  # Debugging
+
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
 
     try:
-        with open(path, "r") as file:
+        with open(full_path, "r") as file:
             content = file.read()
         return {"status": "success", "content": content}
     except Exception as e:
