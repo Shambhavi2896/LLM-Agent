@@ -1,38 +1,38 @@
 # Use a smaller base image
 FROM python:3.9-slim
 
-# Set environment variables for better logging and performance
+# Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin/:$PATH"
 
-# Set the working directory inside the container
+# Set the working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    ca-certificates \
+    git curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install uv, then remove the installer
-RUN curl -fsSL https://astral.sh/uv/install.sh -o uv-installer.sh \
-    && sh uv-installer.sh \
-    && rm uv-installer.sh
+# Install uv
+RUN curl -fsSL https://astral.sh/uv/install.sh | sh
 
-# Copy dependency files first for better caching
+# Verify uv installation
+RUN uv --version && ls -lah /root/.local/bin/
+
+# Copy dependencies first
 COPY requirements.txt .
 
-# Upgrade pip and install dependencies efficiently
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Verify requirements.txt exists
+RUN ls -lah /app/requirements.txt
 
-# Now copy the rest of the application code
+# Install dependencies using uv in system-wide mode
+RUN uv pip install --system -r requirements.txt --verbose
+
+# Copy the rest of the application
 COPY . .
 
-# Expose the port FastAPI runs on
+# Expose FastAPI port
 EXPOSE 8000
 
-# Start the FastAPI app using uv
-CMD ["uv", "serve", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-
+# Start FastAPI using uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
